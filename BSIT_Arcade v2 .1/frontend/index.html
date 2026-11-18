@@ -1,0 +1,821 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BSIT Arcade | Centralized Game Publishing & Play Hub</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        obsidian: '#060911',
+                        slatepanel: '#0d1320',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase JS SDK v2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-obsidian text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-emerald-500 selection:text-slate-950">
+    <section id="authView" class="auth-view" aria-labelledby="authTitle">
+        <div class="auth-page">
+            <aside class="auth-story">
+                <a class="auth-brand" href="#" aria-label="BSIT Arcade home">
+                    <span class="auth-brand-mark"><i data-lucide="gamepad-2"></i></span>
+                    <span>BSIT <strong>ARCADE</strong></span>
+                </a>
+                <div class="auth-story-copy">
+                    <p class="auth-eyebrow">THE CAMPUS GAME LIBRARY</p>
+                    <h1>Made on campus.<br><span>Played together.</span></h1>
+                    <p>Discover student-made games, try the latest builds, and share feedback with the people who made them.</p>
+                </div>
+                <div class="auth-story-footer">
+                    <span class="auth-story-dot"></span>
+                    A home for games built in our community
+                </div>
+            </aside>
+
+            <div class="auth-content">
+                <div class="auth-card">
+                    <p id="authModeLabel" class="auth-eyebrow">WELCOME BACK</p>
+                    <h2 id="authTitle">Sign in to your account</h2>
+                    <p id="authDescription" class="auth-description">Pick up where you left off in the campus arcade.</p>
+
+                    <div class="auth-tabs" role="tablist" aria-label="Account access">
+                        <button id="signInTab" class="auth-tab is-active" type="button" role="tab" aria-selected="true" onclick="setAuthMode('signin')">Sign in</button>
+                        <button id="signUpTab" class="auth-tab" type="button" role="tab" aria-selected="false" onclick="setAuthMode('signup')">Create account</button>
+                    </div>
+
+                    <div class="auth-backend-switch" role="group" aria-label="Account type">
+                        <button id="localAuthBackend" class="auth-backend-option is-active" type="button" aria-pressed="true" onclick="setAuthBackend('local')">Local demo account</button>
+                        <button id="supabaseAuthBackend" class="auth-backend-option hidden" type="button" aria-pressed="false" onclick="setAuthBackend('supabase')">Supabase Auth</button>
+                    </div>
+
+                    <form id="authForm" class="auth-form" onsubmit="handleAuthSubmit(event)">
+                        <label id="authNameField" class="auth-field hidden">
+                            <span>Your name</span>
+                            <input id="authNameInput" type="text" autocomplete="name" maxlength="100" placeholder="e.g. Alex Reyes">
+                        </label>
+                        <label class="auth-field">
+                            <span>Email-style username</span>
+                            <input id="authEmailInput" type="email" autocomplete="email" required placeholder="player1@example.test">
+                        </label>
+                        <label id="authRoleField" class="auth-field hidden">
+                            <span>I am joining as</span>
+                            <select id="authRoleInput">
+                                <option value="Student">Student</option>
+                                <option value="Developer">Developer</option>
+                                <option value="Faculty">Faculty</option>
+                            </select>
+                        </label>
+                        <label class="auth-field">
+                            <span>Password</span>
+                            <input id="authPasswordInput" type="password" autocomplete="current-password" minlength="6" required placeholder="At least 6 characters">
+                        </label>
+                        <p id="authFeedback" class="auth-feedback" role="status" aria-live="polite"></p>
+                        <button id="authSubmitButton" class="auth-submit" type="submit">Sign in</button>
+                    </form>
+
+                    <div class="auth-divider"><span>or</span></div>
+                    <button class="auth-demo-button" type="button" onclick="enterDemoMode()">
+                        <i data-lucide="gamepad-2"></i>
+                        Browse the demo arcade
+                    </button>
+                    <p id="authModeNotice" class="auth-note">Local accounts stay in this browser; game changes do not sync. Use fake credentials only; no email is sent.</p>
+                </div>
+                <p class="auth-legal">BSIT Arcade <span>&middot;</span> Student games, shared locally</p>
+            </div>
+        </div>
+    </section>
+
+    <div id="appShell" class="hidden">
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- TOP DATABASE CONNECTION STATUS BAR -->
+    <div class="bg-slate-950 border-b border-slate-800/90 px-4 py-2 text-xs">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-2.5">
+                <span id="dbStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                <span id="dbStatusLabel" class="text-slate-300 font-medium">
+                    Database Engine: <strong class="text-amber-400">Local Demo / Sandbox Mode</strong> (6-Table BCNF In-Memory Schema)
+                </span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openSupabaseModal()" class="bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-700/80 px-3 py-1 rounded-lg font-mono text-[11px] flex items-center gap-1.5 transition-all cursor-pointer">
+                    <i data-lucide="database" class="w-3.5 h-3.5"></i>
+                    <span id="dbConnectBtnText">Connect Supabase</span>
+                </button>
+                <button onclick="syncFromDatabase(true)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 p-1.5 rounded-lg transition-all cursor-pointer" title="Refresh / Sync Tables">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN STICKY HEADER -->
+    <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3.5">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-4">
+            <!-- Brand Logo -->
+            <div onclick="switchMainView('storefront')" class="flex items-center gap-3 cursor-pointer group">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 via-cyan-500 to-indigo-600 p-0.5 shadow-lg shadow-emerald-500/15 group-hover:shadow-emerald-500/30 transition-all">
+                    <div class="w-full h-full bg-obsidian rounded-[10px] flex items-center justify-center">
+                        <i data-lucide="gamepad-2" class="w-5 h-5 text-emerald-400"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-black text-lg tracking-tight text-white">BSIT <span class="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">ARCADE</span></span>
+                        <span class="hidden sm:inline-block text-[10px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded">BCNF v1.0</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 font-mono">Student-made games and campus releases</p>
+                </div>
+            </div>
+
+            <!-- Navigation View Switcher -->
+            <nav class="flex items-center bg-slate-950/90 p-1 rounded-xl border border-slate-800">
+                <button id="navStorefrontBtn" onclick="switchMainView('storefront')" class="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 text-slate-950 flex items-center gap-1.5 transition-all cursor-pointer">
+                    <i data-lucide="store" class="w-3.5 h-3.5"></i>
+                    <span>Storefront Hub</span>
+                </button>
+                <button id="navAnalyticsBtn" onclick="switchMainView('analytics')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer">
+                    <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+                    <span>SQL Schema &amp; Task 4 Analytics</span>
+                </button>
+            </nav>
+
+            <!-- Active User Context & Publish CTA -->
+            <div class="flex items-center gap-2.5">
+                <div id="activeUserContext" class="flex items-center bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 gap-2">
+                    <i data-lucide="user-check" class="w-3.5 h-3.5 text-cyan-400"></i>
+                    <select id="activeUserSelector" onchange="handleActiveUserChange(this.value)" class="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer">
+                        <!-- Dynamically populated from users table -->
+                    </select>
+                    <span id="signedInUser" class="hidden text-xs font-semibold text-slate-200"></span>
+                    <button id="signOutButton" class="hidden text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer" type="button" onclick="signOutUser()">Sign out</button>
+                </div>
+
+                <button onclick="openPublishModal()" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold px-4 py-2 rounded-xl text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer">
+                    <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                    <span>Publish / Push Build</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- =====================================================================
+         VIEW 1: MAIN STOREFRONT / ARCADE HUB
+         ===================================================================== -->
+    <main id="storefrontView" class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-8">
+        
+        <!-- HERO BANNER -->
+        <section class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[#0c1424] to-cyan-950/40 border border-slate-800 p-6 sm:p-8 lg:p-10 shadow-2xl">
+            <div class="absolute -right-20 -bottom-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute right-1/4 -top-20 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div class="max-w-2xl space-y-4">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-mono">
+                        <i data-lucide="wifi" class="w-3.5 h-3.5 text-emerald-400"></i>
+                        <span>Desktop builds &bull; Android games &bull; Campus LAN</span>
+                    </div>
+                    <h1 class="text-2xl sm:text-4xl font-black tracking-tight text-white leading-tight">
+                        Find your next <span class="text-emerald-400">campus-made game.</span>
+                    </h1>
+                    <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+                        Browse projects from BSIT creators, try new releases, and leave useful feedback for the teams behind them.
+                    </p>
+                </div>
+
+                <!-- Quick Schema Pill Summary -->
+                <div class="bg-slate-950/80 border border-slate-800/90 rounded-xl p-4 font-mono text-xs space-y-2 lg:min-w-[270px]">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                        <span>Active PostgreSQL Schema</span>
+                        <span class="text-emerald-400">6 Tables</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5 text-[11px] text-slate-300">
+                        <span class="bg-slate-900 px-2 py-1 rounded border border-slate-800">users</span>
+                        <span class="bg-slate-900 px-2 py-1 rounded border border-slate-800">categories</span>
+                        <span class="bg-slate-900 px-2 py-1 rounded border border-slate-800">games</span>
+                        <span class="bg-slate-900 px-2 py-1 rounded border border-slate-800">game_versions</span>
+                        <span class="bg-slate-900 px-2 py-1 rounded border border-slate-800">reviews</span>
+                        <span class="bg-slate-900 px-2 py-1 rounded border border-slate-800">game_sessions</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- REAL-TIME KPI SUMMARY BAR -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-slatepanel border border-slate-800/90 rounded-xl p-4 flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="layers" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-mono text-slate-400 uppercase">Published Games</p>
+                    <p id="kpiPublishedGames" class="text-2xl font-black text-white font-mono">0</p>
+                </div>
+            </div>
+
+            <div class="bg-slatepanel border border-slate-800/90 rounded-xl p-4 flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="package" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-mono text-slate-400 uppercase">Total Builds / Versions</p>
+                    <p id="kpiTotalVersions" class="text-2xl font-black text-white font-mono">0</p>
+                </div>
+            </div>
+
+            <div class="bg-slatepanel border border-slate-800/90 rounded-xl p-4 flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="timer" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-mono text-slate-400 uppercase">Total Playtime (Mins)</p>
+                    <p id="kpiTotalPlaytime" class="text-2xl font-black text-white font-mono">0.0</p>
+                </div>
+            </div>
+
+            <div class="bg-slatepanel border border-slate-800/90 rounded-xl p-4 flex items-center gap-4">
+                <div class="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="star" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-mono text-slate-400 uppercase">Average Rating</p>
+                    <p id="kpiAvgRating" class="text-2xl font-black text-white font-mono">0.00</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- CATEGORY FILTER PILLS & SEARCH BAR -->
+        <section class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 border-b border-slate-800 pb-4">
+            <!-- Category Pills -->
+            <div id="categoryPillsContainer" class="flex flex-wrap items-center gap-2">
+                <!-- Dynamically rendered category pills -->
+            </div>
+
+            <!-- Search Input -->
+            <div class="relative w-full md:w-72">
+                <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                <input type="text" id="gameSearchInput" oninput="renderGameGrid()" placeholder="Search game title or developer..." class="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors">
+            </div>
+        </section>
+
+        <!-- GAME GRID CATALOG -->
+        <section>
+            <div id="gameGridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Game Cards injected here -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyGamesState" class="hidden bg-slatepanel/60 border border-slate-800 rounded-2xl p-12 text-center space-y-3">
+                <i data-lucide="folder-search" class="w-10 h-10 text-slate-600 mx-auto"></i>
+                <h3 class="text-base font-bold text-slate-200">No Matching Games Found</h3>
+                <p class="text-xs text-slate-400 max-w-md mx-auto">No games match your active category or search filter. Try resetting filters or publish a new game build.</p>
+                <button onclick="resetCatalogFilters()" class="mt-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 px-4 py-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer">
+                    Reset Filters
+                </button>
+            </div>
+        </section>
+
+        <!-- RECENT ACTIVITY FEED (SESSIONS & REVIEWS) -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4">
+            <!-- Recent Play Sessions -->
+            <div class="bg-slatepanel border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+                        <span>Recent Play Sessions (`game_sessions`)</span>
+                    </h3>
+                    <span class="text-[11px] font-mono text-slate-400">Live Telemetry</span>
+                </div>
+                <div id="recentSessionsList" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Recent Peer & Faculty Reviews -->
+            <div class="bg-slatepanel border border-slate-800 rounded-2xl p-5 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i data-lucide="message-square-quote" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Recent Reviews (`reviews`)</span>
+                    </h3>
+                    <span class="text-[11px] font-mono text-slate-400">1.00 - 5.00 Scale</span>
+                </div>
+                <div id="recentReviewsList" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- =====================================================================
+         VIEW 2: SQL SCHEMA & TASK 4 LIVE ANALYTICS
+         ===================================================================== -->
+    <main id="analyticsView" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-8">
+        
+        <!-- TASK 4 LIVE ANALYTICAL QUERY EXECUTION -->
+        <section class="bg-slatepanel border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
+            <div class="flex flex-wrap justify-between items-start gap-4 border-b border-slate-800 pb-4">
+                <div>
+                    <span class="text-[11px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded">Phase 3 / Task 4 Live Query Execution</span>
+                    <h2 class="text-xl font-extrabold text-white mt-2">Version Playtime &amp; Session Aggregation Analytics</h2>
+                    <p class="text-xs text-slate-400 mt-1">Real-time execution of the Task 4 analytical JOIN across <code class="text-cyan-400">games</code>, <code class="text-cyan-400">game_versions</code>, and <code class="text-cyan-400">game_sessions</code>.</p>
+                </div>
+                <div class="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 font-mono text-xs text-slate-300">
+                    <div>Index Scan: <span class="text-emerald-400 font-bold">idx_game_sessions_version_user</span></div>
+                    <div class="text-[10px] text-slate-500">Est. Cost: 0.28..84.15 (54% Faster)</div>
+                </div>
+            </div>
+
+            <!-- Live Query Results Table -->
+            <div class="overflow-x-auto rounded-xl border border-slate-800">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-slate-950 text-slate-400 font-mono uppercase text-[11px] border-b border-slate-800">
+                            <th class="p-3.5">Game Title (`games.title`)</th>
+                            <th class="p-3.5">Version (`version_number`)</th>
+                            <th class="p-3.5">Developer</th>
+                            <th class="p-3.5 text-right">Total Sessions</th>
+                            <th class="p-3.5 text-right">Aggregate Playtime (Mins)</th>
+                            <th class="p-3.5 text-right">High Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="task4AnalyticsTableBody" class="divide-y divide-slate-800/80 font-mono text-slate-200 bg-slate-900/40">
+                        <!-- Dynamically computed rows -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- POSTGRESQL DDL, SEED DATA & RLS SCRIPT VIEWER -->
+        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- DDL & Indexes Script Card -->
+            <div class="bg-slatepanel border border-slate-800 rounded-2xl p-5 flex flex-col space-y-3">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i data-lucide="file-code-2" class="w-4 h-4 text-emerald-400"></i>
+                            <span>1. PostgreSQL DDL, CHECK &amp; Indexes</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400">Run this first in Supabase SQL Editor</p>
+                    </div>
+                    <button onclick="copySqlBlock('sqlDdlBlock')" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy DDL
+                    </button>
+                </div>
+                <pre id="sqlDdlBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-[11px] text-cyan-300 overflow-x-auto max-h-96 leading-relaxed select-all">-- 1. Create USERS Table
+CREATE TABLE users (
+    user_id VARCHAR(36) PRIMARY KEY,
+    user_name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('Student', 'Developer', 'Faculty')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Create CATEGORIES Table
+CREATE TABLE categories (
+    category_id VARCHAR(36) PRIMARY KEY,
+    category_name VARCHAR(50) NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- 3. Create GAMES Table
+CREATE TABLE games (
+    game_id VARCHAR(36) PRIMARY KEY,
+    developer_id VARCHAR(36) NOT NULL,
+    category_id VARCHAR(36) NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_game_developer FOREIGN KEY (developer_id) REFERENCES users(user_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_game_category FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT
+);
+
+-- 4. Create GAME_VERSIONS Table
+CREATE TABLE game_versions (
+    version_id VARCHAR(36) PRIMARY KEY,
+    game_id VARCHAR(36) NOT NULL,
+    version_number VARCHAR(20) NOT NULL,
+    download_url VARCHAR(500) NOT NULL,
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_version_game FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
+    CONSTRAINT uq_game_version UNIQUE (game_id, version_number)
+);
+
+-- 5. Create REVIEWS Table
+CREATE TABLE reviews (
+    review_id VARCHAR(36) PRIMARY KEY,
+    game_id VARCHAR(36) NOT NULL,
+    user_id VARCHAR(36) NOT NULL,
+    rating NUMERIC(3,2) NOT NULL CHECK (rating >= 1.00 AND rating <= 5.00),
+    comment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_review_game FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
+    CONSTRAINT fk_review_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT uq_user_game_review UNIQUE (user_id, game_id)
+);
+
+-- 6. Create GAME_SESSIONS Table
+CREATE TABLE game_sessions (
+    session_id VARCHAR(36) PRIMARY KEY,
+    version_id VARCHAR(36) NOT NULL,
+    user_id VARCHAR(36) NOT NULL,
+    score INT DEFAULT 0,
+    play_time_minutes NUMERIC(6,2) NOT NULL CHECK (play_time_minutes >= 0.00),
+    played_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_session_version FOREIGN KEY (version_id) REFERENCES game_versions(version_id) ON DELETE CASCADE,
+    CONSTRAINT fk_session_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- 7. Performance Indexes
+CREATE INDEX idx_game_versions_game_id ON game_versions(game_id);
+CREATE INDEX idx_game_sessions_version_user ON game_sessions(version_id, user_id);</pre>
+            </div>
+
+            <!-- Seed Data, RLS Policies & Task 4 Query Card -->
+            <div class="bg-slatepanel border border-slate-800 rounded-2xl p-5 flex flex-col space-y-3">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <i data-lucide="shield-check" class="w-4 h-4 text-cyan-400"></i>
+                            <span>2. Seed Data, RLS Policies &amp; Task 4 Query</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400">Enable RLS &amp; public API read/insert policies for Supabase</p>
+                    </div>
+                    <button onclick="copySqlBlock('sqlRlsSeedBlock')" class="bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer">
+                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Seed &amp; RLS
+                    </button>
+                </div>
+                <pre id="sqlRlsSeedBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-[11px] text-emerald-300 overflow-x-auto max-h-96 leading-relaxed select-all">-- Sample Seed Data
+-- Passwords belong to Supabase Auth (auth.users), not public.users.
+-- Do not add password or password_hash columns to public.users.
+INSERT INTO users (user_id, user_name, email, role) VALUES 
+('usr001', 'Marc Celis', 'marc.celis@bsit.edu', 'Developer'),
+('usr002', 'Charles Martillano', 'charles.martillano@bsit.edu', 'Developer'),
+('usr003', 'Paul Dela Vega', 'paul.dela.vega@bsit.edu', 'Student'),
+('usr004', 'Larry Vivero', 'larry.vivero@bsit.edu', 'Student'),
+('usr005', 'Prof. Joni Capucao', 'joni.capucao@bsit.edu', 'Faculty');
+
+INSERT INTO categories (category_id, category_name, description) VALUES 
+('cat001', 'Multiplayer (LAN)', 'Games designed for local network connectivity over Wi-Fi or LAN.'),
+('cat002', 'Action / Arcade', 'Fast-paced standalone games designed for casual single-player playthroughs.'),
+('cat003', 'RPG / Adventure', 'Narrative-driven, explorer-focused standalone offline titles.');
+
+-- Enable row-level security before adding the policies below.
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.game_versions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.game_sessions ENABLE ROW LEVEL SECURITY;
+
+-- Public Read & Insert Policies for BSIT Arcade Web Client
+CREATE POLICY "Public Read Users" ON users FOR SELECT USING (true);
+CREATE POLICY "Authenticated users can create own profile" ON users
+    FOR INSERT TO authenticated
+    WITH CHECK (auth.uid()::text = user_id);
+CREATE POLICY "Public Read Categories" ON categories FOR SELECT USING (true);
+CREATE POLICY "Public Read Games" ON games FOR SELECT USING (true);
+CREATE POLICY "Public Insert Games" ON games FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Read Versions" ON game_versions FOR SELECT USING (true);
+CREATE POLICY "Public Insert Versions" ON game_versions FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Read Reviews" ON reviews FOR SELECT USING (true);
+CREATE POLICY "Public Insert Reviews" ON reviews FOR INSERT WITH CHECK (true);
+CREATE POLICY "Public Read Sessions" ON game_sessions FOR SELECT USING (true);
+CREATE POLICY "Public Insert Sessions" ON game_sessions FOR INSERT WITH CHECK (true);
+
+-- Task 4 Analytical Query
+SELECT 
+    g.title AS game_title,
+    gv.version_number,
+    COUNT(gs.session_id) AS total_gameplay_sessions,
+    SUM(gs.play_time_minutes) AS aggregate_play_minutes
+FROM games g
+JOIN game_versions gv ON g.game_id = gv.game_id
+JOIN game_sessions gs ON gv.version_id = gs.version_id
+GROUP BY g.game_id, g.title, gv.version_id, gv.version_number
+ORDER BY aggregate_play_minutes DESC;</pre>
+            </div>
+        </section>
+    </main>
+
+    <!-- =====================================================================
+         MODAL 1: GAME DETAIL, VERSIONS, SESSION LOGGER & REVIEWS
+         ===================================================================== -->
+    <div id="gameDetailModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-slatepanel border border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl relative my-auto max-h-[92vh] overflow-y-auto">
+            <button onclick="closeGameDetailModal()" class="absolute top-5 right-5 w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Game Header -->
+            <div class="flex flex-wrap items-start gap-4 pr-8">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-600 p-0.5 shrink-0">
+                    <div class="w-full h-full bg-obsidian rounded-[14px] flex items-center justify-center text-emerald-400">
+                        <i data-lucide="joystick" class="w-7 h-7"></i>
+                    </div>
+                </div>
+                <div class="space-y-1 flex-1">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span id="detailCategoryBadge" class="px-2.5 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">Category</span>
+                        <span id="detailRatingBadge" class="px-2.5 py-0.5 rounded-md text-[11px] font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">&#9733; 0.00</span>
+                    </div>
+                    <h2 id="detailGameTitle" class="text-xl sm:text-2xl font-black text-white">Game Title</h2>
+                    <p id="detailDeveloperInfo" class="text-xs text-slate-400 font-mono">Developer Info</p>
+                </div>
+            </div>
+
+            <!-- LAN Multiplayer Setup Guide (Conditional on Category) -->
+            <div id="detailLanGuide" class="hidden bg-cyan-950/30 border border-cyan-800/50 rounded-xl p-4 space-y-2">
+                <h4 class="text-xs font-bold text-cyan-300 uppercase tracking-wider flex items-center gap-2">
+                    <i data-lucide="wifi" class="w-4 h-4 text-cyan-400"></i>
+                    <span>Campus LAN / Wi-Fi Multiplayer Connection Instructions</span>
+                </h4>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px] font-mono text-slate-300 pt-1">
+                    <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-cyan-400 font-bold">1. Local Network:</span> Connect all devices to the same IT Lab Router or Hotspot.
+                    </div>
+                    <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-cyan-400 font-bold">2. Host Lobby:</span> Run executable &rarr; Select <em>Host LAN Match</em> (UDP/TCP 7777).
+                    </div>
+                    <div class="bg-slate-950/80 p-2.5 rounded-lg border border-slate-800">
+                        <span class="text-cyan-400 font-bold">3. Join IPv4:</span> Enter host's local IP (e.g., <code class="text-emerald-400">192.168.1.x</code>).
+                    </div>
+                </div>
+            </div>
+
+            <!-- VERSION SELECTOR & DOWNLOAD HISTORY (`game_versions`) -->
+            <div class="space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="git-branch" class="w-4 h-4 text-emerald-400"></i>
+                        <span>Release Versions &amp; Direct Build Downloads (`game_versions`)</span>
+                    </h4>
+                    <span id="detailVersionCount" class="text-[11px] font-mono text-slate-400">0 Builds</span>
+                </div>
+                <div id="detailVersionsList" class="space-y-2 max-h-44 overflow-y-auto pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- TWO-COLUMN INTERACTIVE WORKFLOWS: SESSION LOGGER & REVIEWS -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2 border-t border-slate-800">
+                
+                <!-- LEFT: LOCAL SESSION TELEMETRY LOGGER (`game_sessions`) -->
+                <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="cpu" class="w-4 h-4"></i>
+                            <span>Log Play Session</span>
+                        </h4>
+                        <span class="text-[10px] font-mono text-slate-500">game_sessions</span>
+                    </div>
+
+                    <!-- Live Timer Simulator -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-mono text-slate-400 uppercase">Live Session Timer</p>
+                            <p id="liveTimerDisplay" class="text-sm font-mono font-bold text-emerald-400">00:00</p>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" id="timerToggleBtn" onclick="toggleSessionTimer()" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded text-[11px] font-mono font-semibold cursor-pointer">
+                                Start Timer
+                            </button>
+                            <button type="button" onclick="applyTimerToInput()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded text-[11px] font-mono cursor-pointer" title="Use Timer Minutes">
+                                Use
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2.5 text-xs">
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1">Build Version Played (`version_id`)</label>
+                            <select id="sessionVersionSelect" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 font-mono text-xs focus:outline-none focus:border-cyan-500"></select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-mono text-slate-400 mb-1">Playtime (Mins)</label>
+                                <input type="number" id="sessionMinutesInput" step="0.5" min="0" value="25.0" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 font-mono focus:outline-none focus:border-cyan-500">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-mono text-slate-400 mb-1">Score Achieved</label>
+                                <input type="number" id="sessionScoreInput" min="0" value="1800" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1.5 text-slate-200 font-mono focus:outline-none focus:border-cyan-500">
+                            </div>
+                        </div>
+                        <button type="button" onclick="submitPlaySession()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-2 rounded-lg text-xs transition-colors cursor-pointer">
+                            Record Play Session
+                        </button>
+                    </div>
+                </div>
+
+                <!-- RIGHT: ACADEMIC & PEER REVIEWS (`reviews`) -->
+                <div class="bg-slate-950/90 border border-slate-800 rounded-xl p-4 space-y-3 flex flex-col">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="star" class="w-4 h-4"></i>
+                            <span>Reviews &amp; Evaluation</span>
+                        </h4>
+                        <span class="text-[10px] font-mono text-slate-500">1 per user/game</span>
+                    </div>
+
+                    <div class="space-y-2 text-xs">
+                        <div class="flex items-center justify-between gap-2">
+                            <label class="text-[11px] font-mono text-slate-400">Rating (1.00 - 5.00):</label>
+                            <input type="number" id="reviewRatingInput" step="0.25" min="1.00" max="5.00" value="4.75" class="w-24 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-amber-400 font-mono font-bold text-right focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <textarea id="reviewCommentInput" rows="2" placeholder="Peer or faculty feedback on gameplay, FPS, or LAN stability..." class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500"></textarea>
+                        <button type="button" onclick="submitGameReview()" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-2 rounded-lg text-xs transition-colors cursor-pointer">
+                            Submit Review
+                        </button>
+                    </div>
+
+                    <!-- Existing Reviews List -->
+                    <div id="detailReviewsList" class="space-y-2 max-h-32 overflow-y-auto pr-1 pt-1 border-t border-slate-800/80">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         MODAL 2: PUBLISH NEW GAME OR PUSH VERSION UPDATE (DEVELOPER WORKFLOW)
+         ===================================================================== -->
+    <div id="publishModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-slatepanel border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-auto">
+            <button onclick="closePublishModal()" class="absolute top-5 right-5 w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <div>
+                <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
+                    <i data-lucide="upload-cloud" class="w-5 h-5 text-emerald-400"></i>
+                    <span>Developer Publishing Portal</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-0.5">Publish a new game repository or push an updated build version.</p>
+            </div>
+
+            <!-- Mode Toggle: New Game vs New Version -->
+            <div class="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                <button type="button" id="modeNewGameBtn" onclick="setPublishMode('new_game')" class="py-1.5 rounded-lg font-bold bg-emerald-500 text-slate-950 transition-all cursor-pointer">
+                    New Game Title
+                </button>
+                <button type="button" id="modeNewVersionBtn" onclick="setPublishMode('new_version')" class="py-1.5 rounded-lg font-semibold text-slate-400 hover:text-white transition-all cursor-pointer">
+                    Push Version Update
+                </button>
+            </div>
+
+            <form id="publishBuildForm" onsubmit="handlePublishFormSubmit(event)" class="space-y-3.5 text-xs">
+                <!-- New Game Fields -->
+                <div id="newGameFieldsGroup" class="space-y-3.5">
+                    <div>
+                        <label class="block font-mono text-slate-300 mb-1">Game Title (`games.title`) *</label>
+                        <input type="text" id="pubGameTitleInput" placeholder="e.g., Campus Clash LAN Arena" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-slate-300 mb-1">Category (`games.category_id`) *</label>
+                        <select id="pubCategorySelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-emerald-500"></select>
+                    </div>
+                </div>
+
+                <!-- Existing Game Selector (For Version Update) -->
+                <div id="existingGameFieldGroup" class="hidden">
+                    <label class="block font-mono text-slate-300 mb-1">Select Existing Game (`game_versions.game_id`) *</label>
+                    <select id="pubExistingGameSelect" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 focus:outline-none focus:border-cyan-500"></select>
+                </div>
+
+                <!-- Version Release Fields -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-mono text-slate-300 mb-1">Version Tag (`version_number`) *</label>
+                        <input type="text" id="pubVersionNumberInput" required value="v1.0.0-lan" placeholder="v1.2.0-lan" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-emerald-400 font-mono focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-slate-300 mb-1">Package Type</label>
+                        <select id="pubPackageTypeSelect" onchange="updateSampleDownloadUrl()" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-200 focus:outline-none focus:border-emerald-500">
+                            <option value="zip">Desktop Bundle (.zip)</option>
+                            <option value="exe">Windows Installer (.exe)</option>
+                            <option value="apk">Android Package (.apk)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-mono text-slate-300 mb-1">Direct Build Download URL (`download_url`) *</label>
+                    <input type="url" id="pubDownloadUrlInput" required value="https://downloads.arcade.bsit/builds/campus-clash-v1.0.zip" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-cyan-300 font-mono focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2.5">
+                    <button type="button" onclick="closePublishModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer">Cancel</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-extrabold shadow-lg shadow-emerald-500/20 cursor-pointer">
+                        Publish Build
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         MODAL 3: SUPABASE CONNECTION MANAGER
+         ===================================================================== -->
+    <div id="supabaseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slatepanel border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
+            <button onclick="closeSupabaseModal()" class="absolute top-5 right-5 w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <div>
+                <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
+                    <i data-lucide="database" class="w-5 h-5 text-cyan-400"></i>
+                    <span>Supabase PostgreSQL Connection</span>
+                </h3>
+                <p class="text-xs text-slate-400 mt-1">Connect your live Supabase project URL and public Anon Key. Stored locally in your browser.</p>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-mono text-slate-300 mb-1">Supabase Project URL</label>
+                    <input type="url" id="sbUrlInput" placeholder="https://your-project-id.supabase.co" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-500">
+                </div>
+                <div>
+                    <label class="block font-mono text-slate-300 mb-1">Supabase Anon Public Key</label>
+                    <input type="password" id="sbKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-500">
+                </div>
+            </div>
+
+            <div class="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-slate-800">
+                <button type="button" onclick="disconnectSupabaseToDemo()" class="text-xs text-amber-400 hover:text-amber-300 font-semibold cursor-pointer">
+                    Switch to Demo Mode
+                </button>
+                <button type="button" onclick="connectLiveSupabase()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer">
+                    Save &amp; Connect
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         MODAL 4: DOWNLOAD BUILD & LAN LAUNCHER DIALOG
+         ===================================================================== -->
+    <div id="downloadModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slatepanel border border-emerald-500/40 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+            <button onclick="closeDownloadModal()" class="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                    <i data-lucide="download-cloud" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <span class="text-[10px] font-mono uppercase text-emerald-400">Package Ready for Local Execution</span>
+                    <h3 id="dlModalTitle" class="text-base font-extrabold text-white">Game Title</h3>
+                </div>
+            </div>
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-xs space-y-1.5">
+                <div class="flex justify-between">
+                    <span class="text-slate-400">Release Build:</span>
+                    <span id="dlModalVersion" class="text-emerald-400 font-bold">v1.0.0</span>
+                </div>
+                <div class="text-slate-400 text-[11px] break-all pt-1 border-t border-slate-800/80">
+                    Endpoint: <span id="dlModalUrl" class="text-cyan-400">https://...</span>
+                </div>
+            </div>
+            <p class="text-xs text-slate-300 leading-relaxed">
+                Extract the downloaded archive on your lab PC or install the APK on Android. Ensure all players are connected to the same Campus Wi-Fi / LAN subnet before hosting a multiplayer lobby.
+            </p>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeDownloadModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer">Close</button>
+                <a id="dlModalAnchor" href="#" target="_blank" onclick="closeDownloadModal()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold flex items-center gap-1.5">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open Download URL
+                </a>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- =====================================================================
+         JAVASCRIPT APPLICATION ENGINE
+         ===================================================================== -->
+    <script src="app.js"></script>
+</body>
+</html>
+
