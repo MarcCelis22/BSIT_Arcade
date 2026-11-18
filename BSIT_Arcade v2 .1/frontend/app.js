@@ -21,10 +21,10 @@
         // Pre-populated Realistic BSIT Arcade Dataset (Matches 6 PostgreSQL Tables)
         const dbState = {
             users: [
-                { user_id: 'usr001', user_name: 'Carl Sanchez', email: 'carl.sanchez@bsit.edu', role: 'Developer', created_at: '2026-09-01T08:00:00Z' },
-                { user_id: 'usr002', user_name: 'Maverick Cruz', email: 'maverick.cruz@bsit.edu', role: 'Student', created_at: '2026-09-02T09:15:00Z' },
-                { user_id: 'usr003', user_name: 'Prof. Angela Santos', email: 'angela.santos@bsit.edu', role: 'Faculty', created_at: '2026-09-03T10:30:00Z' },
-                { user_id: 'usr004', user_name: 'Bea Mendoza', email: 'bea.mendoza@bsit.edu', role: 'Developer', created_at: '2026-09-04T11:20:00Z' }
+                { user_id: 'usr001', user_name: 'Marc Celis', email: 'marc.celis@bsit.edu', role: 'Developer', created_at: '2026-09-01T08:00:00Z' },
+                { user_id: 'usr002', user_name: 'Larry Vivero', email: 'larry.vivero@bsit.edu', role: 'Student', created_at: '2026-09-02T09:15:00Z' },
+                { user_id: 'usr003', user_name: 'Prof. Capucao', email: 'capucao@bsit.edu', role: 'Faculty', created_at: '2026-09-03T10:30:00Z' },
+                { user_id: 'usr004', user_name: 'Charles Martillano', email: 'charles.martillano@bsit.edu', role: 'Developer', created_at: '2026-09-04T11:20:00Z' }
             ],
             categories: [
                 { category_id: 'cat001', category_name: 'Multiplayer (LAN)', description: 'Games designed for local network connectivity over Wi-Fi or lab LAN.' },
