@@ -1,6 +1,9 @@
 // ---------------------------------------------------------------------
         // 1. STATE & 6-TABLE RELATIONAL SCHEMA DATA STORE
         // ---------------------------------------------------------------------
+        const SUPABASE_URL = 'https://ysasdnaazdcfwzzhipgs.supabase.co';
+        const SUPABASE_PUBLIC_KEY = 'sb_publishable_4ZXQ4RfE4oMYQhYZ0GXKpQ_Q9mSZwtq';
+
         let supabaseClient = null;
         let isLiveMode = false;
         let activeCategoryFilter = 'ALL';
@@ -8,7 +11,6 @@
         let currentAuthUser = null;
         let isDemoSession = false;
         let isLocalAccountSession = false;
-        let authBackend = 'local';
         let localAccounts = [];
         let authMode = 'signin';
         let currentDetailGameId = null;
@@ -22,9 +24,9 @@
         const dbState = {
             users: [
                 { user_id: 'usr001', user_name: 'Marc Celis', email: 'marc.celis@bsit.edu', role: 'Developer', created_at: '2026-09-01T08:00:00Z' },
-                { user_id: 'usr002', user_name: 'Larry Vivero', email: 'larry.vivero@bsit.edu', role: 'Student', created_at: '2026-09-02T09:15:00Z' },
-                { user_id: 'usr003', user_name: 'Prof. Capucao', email: 'capucao@bsit.edu', role: 'Faculty', created_at: '2026-09-03T10:30:00Z' },
-                { user_id: 'usr004', user_name: 'Charles Martillano', email: 'charles.martillano@bsit.edu', role: 'Developer', created_at: '2026-09-04T11:20:00Z' }
+                { user_id: 'usr002', user_name: 'Maverick Cruz', email: 'maverick.cruz@bsit.edu', role: 'Student', created_at: '2026-09-02T09:15:00Z' },
+                { user_id: 'usr003', user_name: 'Prof. Angela Santos', email: 'angela.santos@bsit.edu', role: 'Faculty', created_at: '2026-09-03T10:30:00Z' },
+                { user_id: 'usr004', user_name: 'Bea Mendoza', email: 'bea.mendoza@bsit.edu', role: 'Developer', created_at: '2026-09-04T11:20:00Z' }
             ],
             categories: [
                 { category_id: 'cat001', category_name: 'Multiplayer (LAN)', description: 'Games designed for local network connectivity over Wi-Fi or lab LAN.' },
@@ -64,6 +66,8 @@
         // ---------------------------------------------------------------------
         window.addEventListener('DOMContentLoaded', async () => {
             lucide.createIcons();
+            const footerYear = document.getElementById('footerYear');
+            if (footerYear) footerYear.textContent = new Date().getFullYear();
             loadLocalAccounts();
             await initializeSupabaseClient();
             if (!isLiveMode) restoreLocalProfiles();
@@ -136,7 +140,6 @@
         }
 
         async function restoreAuthSession() {
-            updateAuthAvailability();
             const localSessionId = sessionStorage.getItem('bsit_arcade_local_session');
             const localAccount = localAccounts.find(account => account.user_id === localSessionId);
             if (localAccount) {
@@ -158,39 +161,24 @@
                 }
             }
 
-            const demoUserId = sessionStorage.getItem('bsit_arcade_demo_user');
-            if (demoUserId && dbState.users.some(user => user.user_id === demoUserId)) {
-                activeUserId = demoUserId;
-                enterDemoMode();
-                return;
-            }
             showAuthView();
         }
 
         async function initializeSupabaseClient() {
-            const url = localStorage.getItem('bsit_arcade_sb_url');
-            const key = localStorage.getItem('bsit_arcade_sb_key');
-
-            if (url && key && window.supabase) {
-                document.getElementById('sbUrlInput').value = url;
-                document.getElementById('sbKeyInput').value = key;
+            if (SUPABASE_URL && SUPABASE_PUBLIC_KEY && window.supabase) {
                 try {
-                    supabaseClient = window.supabase.createClient(url, key);
+                    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY);
                     const { error } = await supabaseClient.from('categories').select('category_id').limit(1);
                     if (error) throw error;
                     isLiveMode = true;
-                    updateDbStatusUI(true);
                     await syncFromDatabase(false);
                 } catch (err) {
                     console.warn('Supabase connection fallback to Demo Mode:', err.message);
                     isLiveMode = false;
-                    updateDbStatusUI(false);
                 }
             } else {
                 isLiveMode = false;
-                updateDbStatusUI(false);
             }
-            updateAuthAvailability();
         }
 
         function setAuthMode(mode) {
@@ -212,41 +200,11 @@
             signUpTab.setAttribute('aria-selected', String(isSignUp));
             document.getElementById('authModeLabel').innerText = isSignUp ? 'JOIN THE ARCADE' : 'WELCOME BACK';
             document.getElementById('authTitle').innerText = isSignUp ? 'Create your account' : 'Sign in to your account';
-            document.getElementById('authDescription').innerText = authBackend === 'local'
-                ? (isSignUp
-                    ? 'Create a browser-only demo account using fake credentials.'
-                    : 'Sign in to a demo account saved in this browser.')
-                : (isSignUp
-                    ? 'Make a profile to play, review, and publish campus games.'
-                    : 'Pick up where you left off in the campus arcade.');
+            document.getElementById('authDescription').innerText = isSignUp
+                ? 'Make a profile to play, review, and publish campus games.'
+                : 'Pick up where you left off in the campus arcade.';
             document.getElementById('authSubmitButton').innerText = isSignUp ? 'Create account' : 'Sign in';
             setAuthFeedback('');
-            updateAuthAvailability();
-        }
-
-        function setAuthBackend(backend) {
-            if (backend === 'supabase' && !isLiveMode) {
-                setAuthFeedback('Connect Supabase from the demo app before using Supabase Auth.');
-                return;
-            }
-            authBackend = backend;
-            document.getElementById('localAuthBackend').classList.toggle('is-active', backend === 'local');
-            document.getElementById('supabaseAuthBackend').classList.toggle('is-active', backend === 'supabase');
-            document.getElementById('localAuthBackend').setAttribute('aria-pressed', String(backend === 'local'));
-            document.getElementById('supabaseAuthBackend').setAttribute('aria-pressed', String(backend === 'supabase'));
-            setAuthFeedback('');
-            setAuthMode(authMode);
-        }
-
-        function updateAuthAvailability() {
-            const notice = document.getElementById('authModeNotice');
-            if (!notice) return;
-            const supabaseOption = document.getElementById('supabaseAuthBackend');
-            supabaseOption.classList.toggle('hidden', !isLiveMode);
-            if (!isLiveMode && authBackend === 'supabase') setAuthBackend('local');
-            notice.innerText = authBackend === 'local'
-                ? 'Local accounts stay in this browser; game changes do not sync. Use fake credentials only; no email is sent.'
-                : 'Supabase Auth uses the connected project. Email confirmation depends on its settings.';
         }
 
         function setAuthFeedback(message) {
@@ -257,23 +215,7 @@
         function showAuthView() {
             document.getElementById('authView').classList.remove('hidden');
             document.getElementById('appShell').classList.add('hidden');
-            updateAuthAvailability();
             lucide.createIcons();
-        }
-
-        function enterDemoMode() {
-            currentAuthUser = null;
-            isLocalAccountSession = false;
-            isDemoSession = true;
-            isLiveMode = false;
-            updateDbStatusUI(false);
-            sessionStorage.removeItem('bsit_arcade_local_session');
-            sessionStorage.setItem('bsit_arcade_demo_user', activeUserId);
-            document.getElementById('authView').classList.add('hidden');
-            document.getElementById('appShell').classList.remove('hidden');
-            updateSignedInUserUI();
-            populateAllDropdowns();
-            renderAllViews();
         }
 
         async function handleAuthSubmit(event) {
@@ -282,12 +224,8 @@
             const email = document.getElementById('authEmailInput').value.trim().toLowerCase();
             const password = document.getElementById('authPasswordInput').value;
             try {
-                if (authBackend === 'local') {
-                    await handleLocalAuth(email, password);
-                    return;
-                }
                 if (!isLiveMode || !supabaseClient) {
-                    setAuthFeedback('Connect Supabase from the demo app first to enable Supabase Auth.');
+                    setAuthFeedback('Supabase is unavailable. Verify that the project URL and database tables are configured.');
                     return;
                 }
 
@@ -316,7 +254,7 @@
                 if (!data.user) throw new Error('Supabase did not return a signed-in user.');
                 await finishAuthentication(data.user);
             } catch (error) {
-                console.error(`${authBackend === 'local' ? 'Local' : 'Supabase'} Auth request failed:`, error);
+                console.error('Supabase Auth request failed:', error);
                 setAuthFeedback(error.message || 'Could not complete sign-in. Please try again.');
             }
         }
@@ -380,7 +318,6 @@
             isLocalAccountSession = true;
             isDemoSession = false;
             isLiveMode = false;
-            updateDbStatusUI(false);
             activeUserId = account.user_id;
             sessionStorage.removeItem('bsit_arcade_demo_user');
             sessionStorage.setItem('bsit_arcade_local_session', account.user_id);
@@ -462,61 +399,6 @@
             sessionStorage.removeItem('bsit_arcade_local_session');
             sessionStorage.removeItem('bsit_arcade_demo_user');
             showAuthView();
-        }
-
-        async function connectLiveSupabase() {
-            if (isLocalAccountSession) {
-                showToast('Local demo accounts work with browser-only data. Sign out and choose Supabase Auth to use the live database.', 'error');
-                return;
-            }
-            const url = document.getElementById('sbUrlInput').value.trim();
-            const key = document.getElementById('sbKeyInput').value.trim();
-            if (!url || !key) {
-                showToast('Please enter both Supabase URL and Anon Key.', 'error');
-                return;
-            }
-            localStorage.setItem('bsit_arcade_sb_url', url);
-            localStorage.setItem('bsit_arcade_sb_key', key);
-            closeSupabaseModal();
-            showToast('Connecting to Supabase PostgreSQL...', 'info');
-            await initializeSupabaseClient();
-            if (isLiveMode) {
-                showToast('Connected to Live Supabase Database!', 'success');
-                populateAllDropdowns();
-                renderAllViews();
-            } else {
-                showToast('Could not verify Supabase tables. Running in Local Demo Mode.', 'error');
-            }
-        }
-
-        function disconnectSupabaseToDemo() {
-            localStorage.removeItem('bsit_arcade_sb_url');
-            localStorage.removeItem('bsit_arcade_sb_key');
-            document.getElementById('sbUrlInput').value = '';
-            document.getElementById('sbKeyInput').value = '';
-            supabaseClient = null;
-            isLiveMode = false;
-            updateDbStatusUI(false);
-            updateAuthAvailability();
-            closeSupabaseModal();
-            showToast('Switched to Local Demo / Sandbox Mode.', 'info');
-            renderAllViews();
-        }
-
-        function updateDbStatusUI(live) {
-            const dot = document.getElementById('dbStatusDot');
-            const label = document.getElementById('dbStatusLabel');
-            const btnText = document.getElementById('dbConnectBtnText');
-
-            if (live) {
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse';
-                label.innerHTML = `Database Engine: <strong class="text-emerald-400">Live Supabase PostgreSQL</strong> (Synced &amp; RLS Active)`;
-                btnText.innerText = 'Supabase Connected';
-            } else {
-                dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
-                label.innerHTML = `Database Engine: <strong class="text-amber-400">Local Demo / Sandbox Mode</strong> (6-Table BCNF In-Memory Schema)`;
-                btnText.innerText = 'Connect Supabase';
-            }
         }
 
         async function syncFromDatabase(notify = true) {
@@ -690,7 +572,6 @@
                 return `
                     <article class="bg-slatepanel border border-slate-800/90 hover:border-emerald-500/40 rounded-2xl p-5 flex flex-col justify-between transition-all duration-200 hover:shadow-xl hover:shadow-emerald-500/5 group">
                         <div class="space-y-4">
-                            <!-- Card Top Badges -->
                             <div class="flex justify-between items-start gap-2">
                                 <span class="px-2.5 py-1 rounded-lg text-[11px] font-mono font-semibold border ${badgeStyle} flex items-center gap-1.5">
                                     <i data-lucide="${isLan ? 'wifi' : 'cpu'}" class="w-3 h-3"></i>
@@ -701,7 +582,6 @@
                                 </span>
                             </div>
 
-                            <!-- Title & Developer -->
                             <div>
                                 <h3 onclick="openGameDetailModal('${game.game_id}')" class="text-lg font-extrabold text-white group-hover:text-emerald-400 transition-colors cursor-pointer line-clamp-1">
                                     ${game.title}
@@ -712,7 +592,6 @@
                                 </p>
                             </div>
 
-                            <!-- Latest Build Metadata Box -->
                             <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-3 flex items-center justify-between text-xs font-mono">
                                 <div>
                                     <span class="text-[10px] text-slate-500 block uppercase">Latest Build</span>
@@ -724,13 +603,12 @@
                             </div>
                         </div>
 
-                        <!-- Action Buttons -->
                         <div class="pt-4 mt-4 border-t border-slate-800/80 flex items-center gap-2">
                             <button onclick="openGameDetailModal('${game.game_id}')" class="flex-1 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700/80 font-semibold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer">
                                 <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-cyan-400"></i>
                                 <span>Inspect / Play &amp; Review</span>
                             </button>
-                            <button onclick="triggerDirectDownload('${game.game_id}', '${latestVersion.version_id}')" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold py-2 px-3 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/15 transition-all cursor-pointer" title="Download Build">
+                            <button onclick="triggerDirectDownload('${game.game_id}', '${latestVersion.version_id}')" class="download-button hover:bg-emerald-400 font-extrabold py-2 px-3 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/15 transition-all cursor-pointer" title="Download Build">
                                 <i data-lucide="download" class="w-3.5 h-3.5"></i>
                                 <span>Download</span>
                             </button>
@@ -853,7 +731,7 @@
                         <span class="text-[11px] text-slate-500 font-mono ml-2">Uploaded: ${new Date(v.uploaded_at).toLocaleDateString()}</span>
                         <p class="text-[11px] font-mono text-slate-400 truncate max-w-md mt-0.5">${v.download_url}</p>
                     </div>
-                    <button onclick="triggerDirectDownload('${game.game_id}', '${v.version_id}')" class="bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 border border-emerald-500/30 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer">
+                    <button onclick="triggerDirectDownload('${game.game_id}', '${v.version_id}')" class="download-button hover:bg-emerald-500 border border-emerald-500/30 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 transition-all cursor-pointer">
                         <i data-lucide="download" class="w-3.5 h-3.5"></i> Download Build
                     </button>
                 </div>
@@ -1147,6 +1025,24 @@
             document.getElementById('downloadModal').classList.add('hidden');
         }
 
+        function openQrModal() {
+            const modal = document.getElementById('qrModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeQrModal(event) {
+            if (event && event.target !== event.currentTarget) return;
+            const modal = document.getElementById('qrModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape') closeQrModal();
+        });
+
         function switchMainView(viewName) {
             const storeEl = document.getElementById('storefrontView');
             const analyticsEl = document.getElementById('analyticsView');
@@ -1166,15 +1062,6 @@
                 renderTask4AnalyticsTable();
             }
             lucide.createIcons();
-        }
-
-        function openSupabaseModal() {
-            document.getElementById('supabaseModal').classList.remove('hidden');
-            lucide.createIcons();
-        }
-
-        function closeSupabaseModal() {
-            document.getElementById('supabaseModal').classList.add('hidden');
         }
 
         function copySqlBlock(elementId) {
