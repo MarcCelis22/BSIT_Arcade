@@ -1,14 +1,12 @@
-﻿<!DOCTYPE html>
-<html lang="en" class="dark">
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BSIT Arcade | Centralized Game Publishing & Play Hub</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     fontFamily: {
@@ -23,13 +21,10 @@
             }
         }
     </script>
-    <!-- Google Fonts: Inter & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Lucide Icons CDN -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Supabase JS SDK v2 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -48,7 +43,7 @@
                 </div>
                 <div class="auth-story-footer">
                     <span class="auth-story-dot"></span>
-                    A home for games built in our community
+                    A home for educational games built in our community
                 </div>
             </aside>
 
@@ -63,19 +58,14 @@
                         <button id="signUpTab" class="auth-tab" type="button" role="tab" aria-selected="false" onclick="setAuthMode('signup')">Create account</button>
                     </div>
 
-                    <div class="auth-backend-switch" role="group" aria-label="Account type">
-                        <button id="localAuthBackend" class="auth-backend-option is-active" type="button" aria-pressed="true" onclick="setAuthBackend('local')">Local demo account</button>
-                        <button id="supabaseAuthBackend" class="auth-backend-option hidden" type="button" aria-pressed="false" onclick="setAuthBackend('supabase')">Supabase Auth</button>
-                    </div>
-
-                    <form id="authForm" class="auth-form" onsubmit="handleAuthSubmit(event)">
+                    <form class="auth-form" onsubmit="handleAuthSubmit(event)">
                         <label id="authNameField" class="auth-field hidden">
                             <span>Your name</span>
-                            <input id="authNameInput" type="text" autocomplete="name" maxlength="100" placeholder="e.g. Alex Reyes">
+                            <input id="authNameInput" type="text" autocomplete="name" maxlength="100" placeholder="e.g. Rene Baterbonia">
                         </label>
                         <label class="auth-field">
-                            <span>Email-style username</span>
-                            <input id="authEmailInput" type="email" autocomplete="email" required placeholder="player1@example.test">
+                            <span>Email</span>
+                            <input id="authEmailInput" type="email" autocomplete="email" required placeholder="rene@bsit.edu">
                         </label>
                         <label id="authRoleField" class="auth-field hidden">
                             <span>I am joining as</span>
@@ -87,48 +77,40 @@
                         </label>
                         <label class="auth-field">
                             <span>Password</span>
-                            <input id="authPasswordInput" type="password" autocomplete="current-password" minlength="6" required placeholder="At least 6 characters">
+                            <input id="authPasswordInput" type="password" autocomplete="current-password" minlength="6" required placeholder="rene123">
                         </label>
                         <p id="authFeedback" class="auth-feedback" role="status" aria-live="polite"></p>
                         <button id="authSubmitButton" class="auth-submit" type="submit">Sign in</button>
                     </form>
 
-                    <div class="auth-divider"><span>or</span></div>
-                    <button class="auth-demo-button" type="button" onclick="enterDemoMode()">
-                        <i data-lucide="gamepad-2"></i>
-                        Browse the demo arcade
-                    </button>
-                    <p id="authModeNotice" class="auth-note">Local accounts stay in this browser; game changes do not sync. Use fake credentials only; no email is sent.</p>
+                    <div class="auth-mobile-access" aria-label="Mobile access QR code">
+                        <button type="button" class="qr-preview-button" onclick="openQrModal()" aria-label="View larger BSIT Arcade QR code">
+                            <img src="QR Code.jpg" alt="QR code for BSIT Arcade">
+                            <span>Click to enlarge</span>
+                        </button>
+                        <div>
+                            <strong>Open on mobile</strong>
+                            <p>Scan to access BSIT Arcade on your phone or tablet.</p>
+                        </div>
+                    </div>
                 </div>
                 <p class="auth-legal">BSIT Arcade <span>&middot;</span> Student games, shared locally</p>
             </div>
         </div>
     </section>
 
-    <div id="appShell" class="hidden">
-    <!-- TOAST NOTIFICATION CONTAINER -->
-    <div id="toastContainer" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
-
-    <!-- TOP DATABASE CONNECTION STATUS BAR -->
-    <div class="bg-slate-950 border-b border-slate-800/90 px-4 py-2 text-xs">
-        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2">
-            <div class="flex items-center gap-2.5">
-                <span id="dbStatusDot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
-                <span id="dbStatusLabel" class="text-slate-300 font-medium">
-                    Database Engine: <strong class="text-amber-400">Local Demo / Sandbox Mode</strong> (6-Table BCNF In-Memory Schema)
-                </span>
-            </div>
-            <div class="flex items-center gap-2">
-                <button onclick="openSupabaseModal()" class="bg-slate-900 hover:bg-slate-800 text-cyan-400 border border-slate-700/80 px-3 py-1 rounded-lg font-mono text-[11px] flex items-center gap-1.5 transition-all cursor-pointer">
-                    <i data-lucide="database" class="w-3.5 h-3.5"></i>
-                    <span id="dbConnectBtnText">Connect Supabase</span>
-                </button>
-                <button onclick="syncFromDatabase(true)" class="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700/80 p-1.5 rounded-lg transition-all cursor-pointer" title="Refresh / Sync Tables">
-                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-                </button>
-            </div>
+    <div id="qrModal" class="fixed inset-0 z-[110] hidden items-center justify-center p-5 bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="qrModalTitle" onclick="closeQrModal(event)">
+        <div class="qr-modal-card" onclick="event.stopPropagation()">
+            <button type="button" class="qr-modal-close" onclick="closeQrModal()" aria-label="Close QR code">
+                <i data-lucide="x"></i>
+            </button>
+            <h2 id="qrModalTitle">Scan to open BSIT Arcade</h2>
+            <img src="QR Code.jpg" alt="Larger QR code for BSIT Arcade">
         </div>
     </div>
+
+    <div id="appShell" class="hidden">
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-[100] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
 
     <!-- MAIN STICKY HEADER -->
     <header class="sticky top-0 z-40 glass-panel border-b border-slate-800/80 px-4 lg:px-8 py-3.5">
@@ -157,22 +139,20 @@
                 </button>
                 <button id="navAnalyticsBtn" onclick="switchMainView('analytics')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer">
                     <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
-                    <span>SQL Schema &amp; Task 4 Analytics</span>
+                    <span>Analytics</span>
                 </button>
             </nav>
 
-            <!-- Active User Context & Publish CTA -->
             <div class="flex items-center gap-2.5">
-                <div id="activeUserContext" class="flex items-center bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 gap-2">
+                <div class="flex items-center bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 gap-2">
                     <i data-lucide="user-check" class="w-3.5 h-3.5 text-cyan-400"></i>
                     <select id="activeUserSelector" onchange="handleActiveUserChange(this.value)" class="bg-transparent text-xs font-semibold text-slate-200 focus:outline-none cursor-pointer">
-                        <!-- Dynamically populated from users table -->
                     </select>
                     <span id="signedInUser" class="hidden text-xs font-semibold text-slate-200"></span>
                     <button id="signOutButton" class="hidden text-xs font-semibold text-slate-500 hover:text-slate-900 cursor-pointer" type="button" onclick="signOutUser()">Sign out</button>
                 </div>
 
-                <button onclick="openPublishModal()" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-extrabold px-4 py-2 rounded-xl text-xs shadow-lg shadow-emerald-500/20 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer">
+                <button onclick="openPublishModal()" class="primary-button">
                     <i data-lucide="upload-cloud" class="w-4 h-4"></i>
                     <span>Publish / Push Build</span>
                 </button>
@@ -329,7 +309,7 @@
     </main>
 
     <!-- =====================================================================
-         VIEW 2: SQL SCHEMA & TASK 4 LIVE ANALYTICS
+         VIEW 2:LIVE ANALYTICS
          ===================================================================== -->
     <main id="analyticsView" class="hidden flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-8">
         
@@ -337,9 +317,9 @@
         <section class="bg-slatepanel border border-slate-800 rounded-2xl p-6 space-y-5 shadow-xl">
             <div class="flex flex-wrap justify-between items-start gap-4 border-b border-slate-800 pb-4">
                 <div>
-                    <span class="text-[11px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded">Phase 3 / Task 4 Live Query Execution</span>
+                    <span class="text-[11px] font-mono uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded">Live Query Execution</span>
                     <h2 class="text-xl font-extrabold text-white mt-2">Version Playtime &amp; Session Aggregation Analytics</h2>
-                    <p class="text-xs text-slate-400 mt-1">Real-time execution of the Task 4 analytical JOIN across <code class="text-cyan-400">games</code>, <code class="text-cyan-400">game_versions</code>, and <code class="text-cyan-400">game_sessions</code>.</p>
+                    <p class="text-xs text-slate-400 mt-1">Real-time execution of the analytical JOIN across <code class="text-cyan-400">games</code>, <code class="text-cyan-400">game_versions</code>, and <code class="text-cyan-400">game_sessions</code>.</p>
                 </div>
                 <div class="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 font-mono text-xs text-slate-300">
                     <div>Index Scan: <span class="text-emerald-400 font-bold">idx_game_sessions_version_user</span></div>
@@ -352,8 +332,8 @@
                 <table class="w-full text-left text-xs border-collapse">
                     <thead>
                         <tr class="bg-slate-950 text-slate-400 font-mono uppercase text-[11px] border-b border-slate-800">
-                            <th class="p-3.5">Game Title (`games.title`)</th>
-                            <th class="p-3.5">Version (`version_number`)</th>
+                            <th class="p-3.5">Game Title</th>
+                            <th class="p-3.5">Version</th>
                             <th class="p-3.5">Developer</th>
                             <th class="p-3.5 text-right">Total Sessions</th>
                             <th class="p-3.5 text-right">Aggregate Playtime (Mins)</th>
@@ -366,156 +346,6 @@
                 </table>
             </div>
         </section>
-
-        <!-- POSTGRESQL DDL, SEED DATA & RLS SCRIPT VIEWER -->
-        <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- DDL & Indexes Script Card -->
-            <div class="bg-slatepanel border border-slate-800 rounded-2xl p-5 flex flex-col space-y-3">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                            <i data-lucide="file-code-2" class="w-4 h-4 text-emerald-400"></i>
-                            <span>1. PostgreSQL DDL, CHECK &amp; Indexes</span>
-                        </h3>
-                        <p class="text-[11px] text-slate-400">Run this first in Supabase SQL Editor</p>
-                    </div>
-                    <button onclick="copySqlBlock('sqlDdlBlock')" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer">
-                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy DDL
-                    </button>
-                </div>
-                <pre id="sqlDdlBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-[11px] text-cyan-300 overflow-x-auto max-h-96 leading-relaxed select-all">-- 1. Create USERS Table
-CREATE TABLE users (
-    user_id VARCHAR(36) PRIMARY KEY,
-    user_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('Student', 'Developer', 'Faculty')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- 2. Create CATEGORIES Table
-CREATE TABLE categories (
-    category_id VARCHAR(36) PRIMARY KEY,
-    category_name VARCHAR(50) NOT NULL UNIQUE,
-    description TEXT
-);
-
--- 3. Create GAMES Table
-CREATE TABLE games (
-    game_id VARCHAR(36) PRIMARY KEY,
-    developer_id VARCHAR(36) NOT NULL,
-    category_id VARCHAR(36) NOT NULL,
-    title VARCHAR(150) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_game_developer FOREIGN KEY (developer_id) REFERENCES users(user_id) ON DELETE RESTRICT,
-    CONSTRAINT fk_game_category FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE RESTRICT
-);
-
--- 4. Create GAME_VERSIONS Table
-CREATE TABLE game_versions (
-    version_id VARCHAR(36) PRIMARY KEY,
-    game_id VARCHAR(36) NOT NULL,
-    version_number VARCHAR(20) NOT NULL,
-    download_url VARCHAR(500) NOT NULL,
-    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_version_game FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
-    CONSTRAINT uq_game_version UNIQUE (game_id, version_number)
-);
-
--- 5. Create REVIEWS Table
-CREATE TABLE reviews (
-    review_id VARCHAR(36) PRIMARY KEY,
-    game_id VARCHAR(36) NOT NULL,
-    user_id VARCHAR(36) NOT NULL,
-    rating NUMERIC(3,2) NOT NULL CHECK (rating >= 1.00 AND rating <= 5.00),
-    comment TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_review_game FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE,
-    CONSTRAINT fk_review_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    CONSTRAINT uq_user_game_review UNIQUE (user_id, game_id)
-);
-
--- 6. Create GAME_SESSIONS Table
-CREATE TABLE game_sessions (
-    session_id VARCHAR(36) PRIMARY KEY,
-    version_id VARCHAR(36) NOT NULL,
-    user_id VARCHAR(36) NOT NULL,
-    score INT DEFAULT 0,
-    play_time_minutes NUMERIC(6,2) NOT NULL CHECK (play_time_minutes >= 0.00),
-    played_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_session_version FOREIGN KEY (version_id) REFERENCES game_versions(version_id) ON DELETE CASCADE,
-    CONSTRAINT fk_session_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-);
-
--- 7. Performance Indexes
-CREATE INDEX idx_game_versions_game_id ON game_versions(game_id);
-CREATE INDEX idx_game_sessions_version_user ON game_sessions(version_id, user_id);</pre>
-            </div>
-
-            <!-- Seed Data, RLS Policies & Task 4 Query Card -->
-            <div class="bg-slatepanel border border-slate-800 rounded-2xl p-5 flex flex-col space-y-3">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                            <i data-lucide="shield-check" class="w-4 h-4 text-cyan-400"></i>
-                            <span>2. Seed Data, RLS Policies &amp; Task 4 Query</span>
-                        </h3>
-                        <p class="text-[11px] text-slate-400">Enable RLS &amp; public API read/insert policies for Supabase</p>
-                    </div>
-                    <button onclick="copySqlBlock('sqlRlsSeedBlock')" class="bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer">
-                        <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Seed &amp; RLS
-                    </button>
-                </div>
-                <pre id="sqlRlsSeedBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-[11px] text-emerald-300 overflow-x-auto max-h-96 leading-relaxed select-all">-- Sample Seed Data
--- Passwords belong to Supabase Auth (auth.users), not public.users.
--- Do not add password or password_hash columns to public.users.
-INSERT INTO users (user_id, user_name, email, role) VALUES 
-('usr001', 'Marc Celis', 'marc.celis@bsit.edu', 'Developer'),
-('usr002', 'Charles Martillano', 'charles.martillano@bsit.edu', 'Developer'),
-('usr003', 'Paul Dela Vega', 'paul.dela.vega@bsit.edu', 'Student'),
-('usr004', 'Larry Vivero', 'larry.vivero@bsit.edu', 'Student'),
-('usr005', 'Prof. Joni Capucao', 'joni.capucao@bsit.edu', 'Faculty');
-
-INSERT INTO categories (category_id, category_name, description) VALUES 
-('cat001', 'Multiplayer (LAN)', 'Games designed for local network connectivity over Wi-Fi or LAN.'),
-('cat002', 'Action / Arcade', 'Fast-paced standalone games designed for casual single-player playthroughs.'),
-('cat003', 'RPG / Adventure', 'Narrative-driven, explorer-focused standalone offline titles.');
-
--- Enable row-level security before adding the policies below.
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.games ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.game_versions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.game_sessions ENABLE ROW LEVEL SECURITY;
-
--- Public Read & Insert Policies for BSIT Arcade Web Client
-CREATE POLICY "Public Read Users" ON users FOR SELECT USING (true);
-CREATE POLICY "Authenticated users can create own profile" ON users
-    FOR INSERT TO authenticated
-    WITH CHECK (auth.uid()::text = user_id);
-CREATE POLICY "Public Read Categories" ON categories FOR SELECT USING (true);
-CREATE POLICY "Public Read Games" ON games FOR SELECT USING (true);
-CREATE POLICY "Public Insert Games" ON games FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Read Versions" ON game_versions FOR SELECT USING (true);
-CREATE POLICY "Public Insert Versions" ON game_versions FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Read Reviews" ON reviews FOR SELECT USING (true);
-CREATE POLICY "Public Insert Reviews" ON reviews FOR INSERT WITH CHECK (true);
-CREATE POLICY "Public Read Sessions" ON game_sessions FOR SELECT USING (true);
-CREATE POLICY "Public Insert Sessions" ON game_sessions FOR INSERT WITH CHECK (true);
-
--- Task 4 Analytical Query
-SELECT 
-    g.title AS game_title,
-    gv.version_number,
-    COUNT(gs.session_id) AS total_gameplay_sessions,
-    SUM(gs.play_time_minutes) AS aggregate_play_minutes
-FROM games g
-JOIN game_versions gv ON g.game_id = gv.game_id
-JOIN game_sessions gs ON gv.version_id = gs.version_id
-GROUP BY g.game_id, g.title, gv.version_id, gv.version_number
-ORDER BY aggregate_play_minutes DESC;</pre>
-            </div>
-        </section>
     </main>
 
     <!-- =====================================================================
@@ -523,7 +353,7 @@ ORDER BY aggregate_play_minutes DESC;</pre>
          ===================================================================== -->
     <div id="gameDetailModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-slatepanel border border-slate-800 rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl relative my-auto max-h-[92vh] overflow-y-auto">
-            <button onclick="closeGameDetailModal()" class="absolute top-5 right-5 w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+            <button onclick="closeGameDetailModal()" class="modal-close-button" aria-label="Close game details">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
 
@@ -600,7 +430,7 @@ ORDER BY aggregate_play_minutes DESC;</pre>
                             <button type="button" id="timerToggleBtn" onclick="toggleSessionTimer()" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded text-[11px] font-mono font-semibold cursor-pointer">
                                 Start Timer
                             </button>
-                            <button type="button" onclick="applyTimerToInput()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded text-[11px] font-mono cursor-pointer" title="Use Timer Minutes">
+                            <button type="button" onclick="applyTimerToInput()" class="session-use-button" title="Use Timer Minutes">
                                 Use
                             </button>
                         </div>
@@ -662,7 +492,7 @@ ORDER BY aggregate_play_minutes DESC;</pre>
          ===================================================================== -->
     <div id="publishModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
         <div class="bg-slatepanel border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative my-auto">
-            <button onclick="closePublishModal()" class="absolute top-5 right-5 w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
+            <button onclick="closePublishModal()" class="modal-close-button" aria-label="Close publish form">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
 
@@ -684,7 +514,7 @@ ORDER BY aggregate_play_minutes DESC;</pre>
                 </button>
             </div>
 
-            <form id="publishBuildForm" onsubmit="handlePublishFormSubmit(event)" class="space-y-3.5 text-xs">
+            <form onsubmit="handlePublishFormSubmit(event)" class="space-y-3.5 text-xs">
                 <!-- New Game Fields -->
                 <div id="newGameFieldsGroup" class="space-y-3.5">
                     <div>
@@ -725,8 +555,8 @@ ORDER BY aggregate_play_minutes DESC;</pre>
                 </div>
 
                 <div class="pt-2 flex justify-end gap-2.5">
-                    <button type="button" onclick="closePublishModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold cursor-pointer">Cancel</button>
-                    <button type="submit" class="px-5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-slate-950 font-extrabold shadow-lg shadow-emerald-500/20 cursor-pointer">
+                    <button type="button" onclick="closePublishModal()" class="secondary-button">Cancel</button>
+                    <button type="submit" class="primary-button">
                         Publish Build
                     </button>
                 </div>
@@ -735,50 +565,11 @@ ORDER BY aggregate_play_minutes DESC;</pre>
     </div>
 
     <!-- =====================================================================
-         MODAL 3: SUPABASE CONNECTION MANAGER
-         ===================================================================== -->
-    <div id="supabaseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-slatepanel border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl relative">
-            <button onclick="closeSupabaseModal()" class="absolute top-5 right-5 w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-
-            <div>
-                <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
-                    <i data-lucide="database" class="w-5 h-5 text-cyan-400"></i>
-                    <span>Supabase PostgreSQL Connection</span>
-                </h3>
-                <p class="text-xs text-slate-400 mt-1">Connect your live Supabase project URL and public Anon Key. Stored locally in your browser.</p>
-            </div>
-
-            <div class="space-y-3 text-xs">
-                <div>
-                    <label class="block font-mono text-slate-300 mb-1">Supabase Project URL</label>
-                    <input type="url" id="sbUrlInput" placeholder="https://your-project-id.supabase.co" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-500">
-                </div>
-                <div>
-                    <label class="block font-mono text-slate-300 mb-1">Supabase Anon Public Key</label>
-                    <input type="password" id="sbKeyInput" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-slate-100 font-mono focus:outline-none focus:border-cyan-500">
-                </div>
-            </div>
-
-            <div class="flex flex-wrap justify-between items-center gap-2 pt-2 border-t border-slate-800">
-                <button type="button" onclick="disconnectSupabaseToDemo()" class="text-xs text-amber-400 hover:text-amber-300 font-semibold cursor-pointer">
-                    Switch to Demo Mode
-                </button>
-                <button type="button" onclick="connectLiveSupabase()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer">
-                    Save &amp; Connect
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- =====================================================================
          MODAL 4: DOWNLOAD BUILD & LAN LAUNCHER DIALOG
          ===================================================================== -->
     <div id="downloadModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-slatepanel border border-emerald-500/40 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
-            <button onclick="closeDownloadModal()" class="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer">
+            <button onclick="closeDownloadModal()" class="modal-close-button" aria-label="Close download details">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
             <div class="flex items-center gap-3">
@@ -803,13 +594,27 @@ ORDER BY aggregate_play_minutes DESC;</pre>
                 Extract the downloaded archive on your lab PC or install the APK on Android. Ensure all players are connected to the same Campus Wi-Fi / LAN subnet before hosting a multiplayer lobby.
             </p>
             <div class="flex justify-end gap-2 pt-2">
-                <button onclick="closeDownloadModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold cursor-pointer">Close</button>
-                <a id="dlModalAnchor" href="#" target="_blank" onclick="closeDownloadModal()" class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold flex items-center gap-1.5">
+                <button onclick="closeDownloadModal()" class="secondary-button">Close</button>
+                <a id="dlModalAnchor" href="#" target="_blank" onclick="closeDownloadModal()" class="download-button px-4 py-2 rounded-xl hover:bg-emerald-400 text-xs font-extrabold flex items-center gap-1.5">
                     <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Open Download URL
                 </a>
             </div>
         </div>
     </div>
+
+    <footer class="site-footer">
+        <div class="site-footer-inner">
+            <a class="footer-brand" href="#" onclick="switchMainView('storefront'); window.scrollTo({ top: 0, behavior: 'smooth' });" aria-label="BSIT Arcade home">
+                BSIT <strong>ARCADE</strong>
+            </a>
+            <nav class="footer-nav" aria-label="Footer navigation">
+                <button type="button" onclick="switchMainView('storefront')">Storefront</button>
+                <button type="button" onclick="switchMainView('analytics')">Analytics</button>
+                <a href="#appShell" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })">Back to top</a>
+            </nav>
+            <p>&copy; <span id="footerYear"></span> ParSU BSIT Arcade. All rights reserved.</p>
+        </div>
+    </footer>
     </div>
 
     <!-- =====================================================================
